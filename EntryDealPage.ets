@@ -1,9 +1,7 @@
-import router from '@ohos.router'
-import { ShowList } from '../components/profile'
-
-@Entry
 @Component
-struct DealPage {
+export struct EntryDealPage {
+  onBack?: () => void
+
   build() {
     Column() {
       // 顶部导航
@@ -13,7 +11,9 @@ struct DealPage {
           .height(55)
           .margin({ left: 32 })
           .onClick(() => {
-            router.back()
+            if (this.onBack) {
+              this.onBack()
+            }
           })
         Text('订单')
           .fontSize(84)
@@ -23,13 +23,8 @@ struct DealPage {
       .margin({ top: 229})
       .width('100%')
       .height(128)
-
-      // 暂时注释掉展示列表
-      // Column() {
-      //   ShowList()
-      // }
-      // .margin({ top: 69 })
       
+      // 暂不显示订单列表
       Text('没有更多了')
         .fontSize(48)
         .fontColor('#999999')

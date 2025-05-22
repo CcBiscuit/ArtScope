@@ -1,15 +1,58 @@
-import { CalendarDay, WEEK_DAYS, getHolidayName } from '../common/constants/CalendarConstants'
+import { CalendarDay, WEEK_DAYS, getHolidayName, ReminderItem } from '../common/constants/CalendarConstants'
+import { eventBus, EVENTS } from '../common/constants/EventBus'
 import router from '@ohos.router'
-import tab from 'ets/components/tab';
+import tab from 'ets/components/tab'
+import hilog from '@ohos.hilog'
+
+interface CalendarPageProps {
+  currentDate?: Date;
+  calendarDays?: CalendarDay[];
+  reminders?: Map<string, boolean>;
+}
+
+const TAG: string = '[CalendarPage]'
+const DOMAIN: number = 0x0000
 
 @Component
 export struct CalendarPage {
   @State currentDate: Date = new Date()
   @State calendarDays: CalendarDay[] = []
-  @State reminders: Map<string, boolean> = new Map()
+  @State dateHasReminderMap: Map<string, boolean> = new Map()
+  @State activeReminders: ReminderItem[] = []
+
+  private reminderSavedListener = (reminder: ReminderItem) => {
+    this.handleReminderSaved(reminder);
+  };
 
   aboutToAppear() {
     this.generateCalendarDays()
+    eventBus.onReminderSaved(this.reminderSavedListener);
+    hilog.info(DOMAIN, TAG, 'CalendarPage aboutToAppear, subscribed to REMINDER_SAVED');
+  }
+
+  aboutToDisappear() {
+    eventBus.offReminderSaved(this.reminderSavedListener);
+    hilog.info(DOMAIN, TAG, 'CalendarPage aboutToDisappear, unsubscribed from REMINDER_SAVED');
+  }
+
+  handleReminderSaved(reminder: ReminderItem) {
+    hilog.info(DOMAIN, TAG, `Received new reminder: ${JSON.stringify(reminder)}`);
+    const existingReminderIndex = this.activeReminders.findIndex(
+      item => item.title === reminder.title && item.startTime === reminder.startTime
+    );
+    if (existingReminderIndex === -1) {
+      this.activeReminders.push(reminder);
+      this.activeReminders.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+    } else {
+      this.activeReminders[existingReminderIndex] = reminder;
+    }
+
+    const reminderDateStr = reminder.startTime.split(' ')[0];
+    if (reminderDateStr) {
+      this.dateHasReminderMap.set(reminderDateStr, true);
+      this.generateCalendarDays(); 
+    }
+    hilog.info(DOMAIN, TAG, `Active reminders: ${this.activeReminders.length}`);
   }
 
   generateCalendarDays() {
@@ -17,16 +60,12 @@ export struct CalendarPage {
     const month = this.currentDate.getMonth()
     const today = new Date()
     
-    // 获取当月第一天是星期几
     const firstDay = new Date(year, month, 1).getDay()
-    // 获取当月天数
     const daysInMonth = new Date(year, month + 1, 0).getDate()
-    // 获取上月天数
     const daysInLastMonth = new Date(year, month, 0).getDate()
     
     let days: CalendarDay[] = []
     
-    // 添加上月的日期
     for (let i = firstDay - 1; i >= 0; i--) {
       days.push({
         date: daysInLastMonth - i,
@@ -37,10 +76,9 @@ export struct CalendarPage {
       })
     }
     
-    // 添加当月的日期
     for (let i = 1; i <= daysInMonth; i++) {
-      const dateStr = `${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`
-      const holidayName = getHolidayName(dateStr)
+      const currentFullDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+      const holidayName = getHolidayName(`${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`)
       days.push({
         date: i,
         isCurrentMonth: true,
@@ -48,12 +86,11 @@ export struct CalendarPage {
                  today.getMonth() === month && 
                  today.getFullYear() === year,
         isHoliday: holidayName !== '',
-        hasReminder: this.reminders.get(`${year}-${dateStr}`) || false
+        hasReminder: this.dateHasReminderMap.get(currentFullDate) || false
       })
     }
     
-    // 添加下月的日期
-    const remainingDays = 42 - days.length // 保持6行
+    const remainingDays = 42 - days.length
     for (let i = 1; i <= remainingDays; i++) {
       days.push({
         date: i,
@@ -65,6 +102,10 @@ export struct CalendarPage {
     }
     
     this.calendarDays = days
+  }
+
+  private handleAddReminder(date: string) {
+    eventBus.emitAddReminder(date)
   }
 
   build() {
@@ -151,14 +192,12 @@ export struct CalendarPage {
                 .height('100%')
               }
               .onClick(() => {
-                const dateStr = `${this.currentDate.getFullYear()}-${String(this.currentDate.getMonth() + 1).padStart(2, '0')}-${String(day.date).padStart(2, '0')}`
+                const dayStr = String(day.date).padStart(2, '0');
+                const monthStr = String(this.currentDate.getMonth() + 1).padStart(2, '0');
+                const yearStr = this.currentDate.getFullYear();
+                const dateStr = `${yearStr}-${monthStr}-${dayStr}`;
                 if (day.isCurrentMonth) {
-                  router.pushUrl({
-                    url: 'pages/ReminderPage',
-                    params: {
-                      date: dateStr
-                    }
-                  })
+                  this.handleAddReminder(dateStr)
                 }
               })
             })
@@ -172,6 +211,50 @@ export struct CalendarPage {
         .width(1155)
         .backgroundColor(Color.White)
         .borderRadius(32)
+
+        // 新增：显示活动提醒列表
+        if (this.activeReminders.length > 0) {
+          List({ space: 10 }) {
+            ForEach(this.activeReminders, (reminder: ReminderItem) => {
+              ListItem() {
+                Row() {
+                  Text(`${reminder.startTime.split(' ')[1]} - ${reminder.endTime.split(' ')[1]}`)
+                    .fontSize(40)
+                    .fontColor('#ff454444')
+                  Text(reminder.title)
+                    .fontSize(40)
+                    .fontColor('#ff454444')
+                    .margin({ left: 30 })
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
+                    .maxLines(1)
+                }
+                .height(100)
+                .backgroundColor(Color.White)
+                .borderRadius(20)
+                .padding({ left: 30, right: 30 })
+                .width('100%')
+                .onClick(() => {
+                  hilog.info(DOMAIN, TAG, `Reminder item clicked: ${JSON.stringify(reminder)}`);
+                  eventBus.emitAddReminder(reminder.startTime.split(' ')[0]);
+                })
+              }
+            }, (reminder: ReminderItem) => reminder.title + reminder.startTime)
+          }
+          .width('100%')
+          .margin({ top: 30 })
+          .padding({left:10, right:10})
+          .backgroundColor('#f0f0f0')
+          .borderRadius(20)
+          .clip(true)
+          .height(this.activeReminders.length > 3 ? 350 : this.activeReminders.length * 110)
+        } else {
+           Text('今日暂无提醒')
+             .fontSize(40)
+             .fontColor(Color.Gray)
+             .margin({ top: 30 })
+             .width('100%')
+             .textAlign(TextAlign.Center)
+        }
 
         // 演出信息卡片
         Row() {
@@ -197,27 +280,23 @@ export struct CalendarPage {
         // 添加按钮
         Button({ type: ButtonType.Circle }) {
           Image($r('app.media.cal_add'))
-            .width(96)
-            .height(96)
+            .width(60)
+            .height(60)
         }
-        .width(192)
-        .height(192)
+        .width(147)
+        .height(147)
+        .position({ x: '80%', y: '80%' })
         .backgroundColor('#000000')
-        .position({ x: '90%', y: '85%' })
-        .translate({ x: '-50%', y: 0 })
         .onClick(() => {
-          router.pushUrl({
-            url: 'pages/reminderPage'
-          })
+          const today = new Date()
+          const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+          this.handleAddReminder(dateStr)
         })
       }
       .width('100%')
       .layoutWeight(1)
       .backgroundColor('#e2e2e2')
-      .padding({ left: 75, right: 75 })
-
-      tab()
-        .width('100%')
+      .padding({ left: 75, right: 75, bottom: 75 })
     }
     .width('100%')
     .height('100%')

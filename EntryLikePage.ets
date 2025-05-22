@@ -1,12 +1,12 @@
 import { ShowList } from '../components/profile'
-import router from '@ohos.router'
 import { showService } from '../common/constants/ShowService'
 import { ShowItem } from '../common/constants/ShowItem'
 
-@Entry
 @Component
-struct LikePage {
+export struct EntryLikePage {
   @State likedShows: ShowItem[] = []
+  onBack?: () => void
+  onShowDetail?: (showId: string) => void
 
   aboutToAppear() {
     // 获取收藏的演出列表
@@ -22,7 +22,9 @@ struct LikePage {
           .height(55)
           .margin({ left: 32 })
           .onClick(() => {
-            router.back()
+            if (this.onBack) {
+              this.onBack()
+            }
           })
         Text('收藏')
           .fontSize(84)
@@ -34,8 +36,15 @@ struct LikePage {
       .height(128)
 
       if (this.likedShows.length > 0) {
-        ShowList({ shows: this.likedShows })
-          .margin({ top: 69 })
+        ShowList({ 
+          shows: this.likedShows,
+          onItemClick: (show: ShowItem) => {
+            if (this.onShowDetail) {
+              this.onShowDetail(show.id)
+            }
+          }
+        })
+        .margin({ top: 69 })
       } else {
         Text('暂无收藏')
           .fontSize(48)

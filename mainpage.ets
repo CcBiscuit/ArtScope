@@ -2,6 +2,8 @@ import { ShowList } from '../components/profile'
 import router from '@ohos.router'
 import { PAGES } from '../common/constants'
 import hilog from '@ohos.hilog'
+import { showService } from '../common/constants/ShowService'
+import { ShowItem } from '../common/constants/ShowItem'
 
 const TAG: string = '[MainPage]'
 const DOMAIN: number = 0x0000
@@ -21,6 +23,12 @@ export struct MainPage {
     { id: 2, image: $r('app.media.dnacover') },
     { id: 3, image: $r('app.media.dnacover') }
   ]
+  @State shows: ShowItem[] = []
+
+  aboutToAppear() {
+    // 获取所有演出列表
+    this.shows = showService.getAllShows()
+  }
 
   build() {
     Column() {
@@ -49,7 +57,7 @@ export struct MainPage {
         .width(901)
         .height(112)
         .padding({ left: 16, right: 16 })
-        .backgroundColor('#ffffffff')
+        .backgroundColor(Color.White)
         .borderRadius(55)
         .margin({ left: 75 })
         .onClick(() => {
@@ -81,7 +89,7 @@ export struct MainPage {
           }
         })
       }
-      .backgroundColor('#ffffff')
+      .backgroundColor(Color.White)
       .width(1113)
       .height(383)
       .margin({ bottom: 52 })
@@ -92,8 +100,9 @@ export struct MainPage {
 
       // 列表区域
       Column() {
-        ShowList()
+        ShowList({ shows: this.shows })
       }
+      .margin({ top: 20 })
     }
     .width('100%')
     .height('100%')

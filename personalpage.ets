@@ -6,6 +6,20 @@ interface RecordItem {
   comment: string
   rating: number
   height: number
+  date?: string
+}
+
+// 修改为使用独立的接口定义
+interface NewRecord {
+  images: ResourceStr[]
+  comment: string
+  rating: number
+  height: number
+  date: string
+}
+
+interface RecordParams {
+  newRecord: NewRecord
 }
 
 const heights: number[] = [220, 300, 380]
@@ -30,6 +44,18 @@ export struct PersonalPage {
     }
     return arr
   })()
+
+  newRecord?: RecordItem
+  onPublish?: () => void
+  onNavigateToLike?: () => void
+  onNavigateToDeal?: () => void
+
+  aboutToAppear() {
+    // 检查是否有新的记录数据
+    if (this.newRecord) {
+      this.records.unshift(this.newRecord)
+    }
+  }
 
   build() {
     Column() {
@@ -56,9 +82,9 @@ export struct PersonalPage {
             .fontSize(40)
             .fontColor(Color.Black)
             .onClick(() => {
-              router.pushUrl({
-                url: 'pages/dealpage'
-              })
+              if (this.onNavigateToDeal) {
+                this.onNavigateToDeal()
+              }
             })
             .margin(40)
         }
@@ -74,9 +100,9 @@ export struct PersonalPage {
             .fontSize(40)
             .fontColor(Color.Black)
             .onClick(() => {
-              router.pushUrl({
-                url: 'pages/likepage'
-              })
+              if (this.onNavigateToLike) {
+                this.onNavigateToLike()
+              }
             })
             .margin(40)
         }
@@ -106,9 +132,9 @@ export struct PersonalPage {
             .height(126)
             .borderRadius(28)
             .onClick(() => {
-              router.pushUrl({
-                url: 'pages/recordpage'
-              })
+              if (this.onPublish) {
+                this.onPublish()
+              }
             })
         }
         .width('100%')
@@ -127,18 +153,6 @@ export struct PersonalPage {
                     .height('100%')
                     .aspectRatio(1)
                     .borderRadius(16)
-                    .onClick(() => {
-                      router.pushUrl({
-                        url: 'pages/commentspage',
-                        params: {
-                          images: [item.image],
-                          title: item.comment,
-                          content: '这是演出的精彩评论...',
-                          rating: item.rating,
-                          date: new Date().toLocaleDateString()
-                        }
-                      })
-                    })
                 }
                 .height(item.height)
                 .padding(38)
@@ -155,8 +169,6 @@ export struct PersonalPage {
             maxHeight: 300
           })
           .padding({ left: 32, right: 32 })
-
-
         }
       }
       .width('90%')

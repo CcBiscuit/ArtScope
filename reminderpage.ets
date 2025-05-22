@@ -1,13 +1,14 @@
 import { ReminderItem, ReminderType } from '../common/constants/CalendarConstants'
 import router from '@ohos.router'
+import { eventBus, EVENTS } from '../common/constants/EventBus'
 
 interface ReminderPageParams {
   date: string
 }
 
-@Entry
+//@Entry
 @Component
-struct ReminderPage {
+export struct ReminderPage {
   @State reminder: ReminderItem = {
     title: '',
     startTime: '',
@@ -16,7 +17,8 @@ struct ReminderPage {
     reminderType: ReminderType.NOTIFICATION,
     note: ''
   }
-  private date: string = this.getRouterDate()
+  date: string = ''
+  onBack?: () => void
 
   private getRouterDate(): string {
     const params = router.getParams() as ReminderPageParams
@@ -44,14 +46,16 @@ struct ReminderPage {
         Image($r('app.media.det_back'))
           .width(34)
           .height(55)
-          .margin({ left: 85 ,top:242})
+          .margin({ left: 85, top: 242 })
           .onClick(() => {
-            router.back()
+            if (this.onBack) {
+              this.onBack()
+            }
           })
 
         Text('设置提醒')
           .fontSize(84)
-          .margin({ left: 343,top:242 })
+          .margin({ left: 343, top: 242 })
       }
       .width('100%')
       .padding(16)
@@ -204,8 +208,12 @@ struct ReminderPage {
         .height(112)
         .margin({ top: 32 })
         .onClick(() => {
-          // TODO: 保存提醒事项
-          router.back()
+          // 通过EventBus发送提醒数据
+          eventBus.emitReminderSaved(this.reminder); 
+          // 调用 onBack 返回，EntryPage 会处理页面切换
+          if (this.onBack) {
+            this.onBack();
+          }
         })
     }
     .width('100%')
