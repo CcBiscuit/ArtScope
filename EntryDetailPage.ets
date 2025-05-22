@@ -1,22 +1,12 @@
-import { showService } from '../common/constants/ShowService'
-import router from '@ohos.router'
 import { ShowItem } from '../common/constants/ShowItem'
+import { PerformerInfo } from '../pages/detailpage'
+import { showService } from '../common/constants/ShowService'
 
-export interface PerformerInfo {
-  name: string
-  image: ResourceStr
-}
-
-// 路由参数接口
-export interface DetailPageParams {
-  showId: string
-}
-
-@Entry
 @Component
-struct DetailPage {
+export struct EntryDetailPage {
   @State currentShow: ShowItem | undefined = undefined
   @State isLiked: boolean = false
+  @State showId: string = ''
   @State performers: PerformerInfo[] = [
     { name: '名称', image: $r('app.media.dnacover') },
     { name: '名称', image: $r('app.media.dnacover') },
@@ -24,12 +14,12 @@ struct DetailPage {
     { name: '名称', image: $r('app.media.dnacover') },
     { name: '名称', image: $r('app.media.dnacover') },
   ]
+  onBack?: () => void
 
   aboutToAppear() {
-    const params = router.getParams() as DetailPageParams
-    if (params?.showId) {
-      this.currentShow = showService.getShowById(params.showId)
-      this.isLiked = showService.isLiked(params.showId)
+    if (this.showId) {
+      this.currentShow = showService.getShowById(this.showId)
+      this.isLiked = showService.isLiked(this.showId)
     }
   }
 
@@ -46,7 +36,9 @@ struct DetailPage {
         .height(127)
         .backgroundColor(Color.White)
         .onClick(() => {
-          router.back()
+          if (this.onBack) {
+            this.onBack()
+          }
         })
 
         Button({ type: ButtonType.Circle }) {
@@ -162,4 +154,4 @@ struct DetailPage {
     .height('100%')
     .backgroundColor('#F5F5F5')
   }
-}
+} 

@@ -10,12 +10,21 @@ interface ImageItem {
   uri: ResourceStr
 }
 
+interface RecordData {
+  images: ResourceStr[]
+  comment: string
+  rating: number
+  date: string
+  height: number
+}
 
 @Component
 export struct RecordPage {
   @State starCount: number = 0
   @State uploadedImages: ImageItem[] = []
   @State comment: string = ''
+  onPublish?: (data: RecordData) => void
+  
   private ratingTexts: StarRating[] = [
     { text: '非常差', score: 1 },
     { text: '差', score: 2 },
@@ -26,6 +35,11 @@ export struct RecordPage {
 
   getRatingText(): string {
     return this.ratingTexts.find(item => item.score === this.starCount)?.text || '非常差'
+  }
+
+  getRandomHeight(): number {
+    const heights = [220, 300, 380]
+    return heights[Math.floor(Math.random() * heights.length)]
   }
 
   build() {
@@ -78,6 +92,7 @@ export struct RecordPage {
           Column() {
             Column() {
               TextArea({ placeholder: '输入你的感想......' })
+                .fontSize(58)
                 .placeholderFont({ size: 58 })
                 .backgroundColor(Color.White)
                 .height(400)
@@ -151,7 +166,19 @@ export struct RecordPage {
               .fontColor(Color.White)
               .backgroundColor(Color.Black)
               .onClick(() => {
-                router.back()
+                // 准备要传递的数据
+                const recordData: RecordData = {
+                  images: this.uploadedImages.map(item => item.uri),
+                  comment: this.comment,
+                  rating: this.starCount,
+                  date: new Date().toLocaleDateString(),
+                  height: this.getRandomHeight()
+                }
+
+                // 通过回调函数传递数据
+                if (this.onPublish) {
+                  this.onPublish(recordData)
+                }
               })
           }
           .width('100%')
